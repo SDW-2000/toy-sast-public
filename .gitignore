@@ -1,0 +1,48 @@
+# macOS
+.DS_Store
+
+# Local agent/runtime state
+.omx/
+.pnpm-store/
+
+# Obsidian personal state
+.obsidian/graph.json
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/community-plugins.json
+.obsidian/plugins/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# JavaScript
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+
+# Local data and analysis workspaces
+data/
+work/
+uploads/
+*.zip
+
+# Local archives are preserved outside version control
+archive/
+artifacts/
+/*.pen

@@ -1,0 +1,408 @@
+rules:
+  - id: kisa-2021-02-java-code-injection
+    languages: [java]
+    message: 외부 입력을 스크립트 엔진으로 평가하면 임의 코드가 실행될 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-02
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 2
+      name: 코드 삽입
+      description: HttpServletRequest.getParameter 외부 입력이 Java 스크립트 엔진의 eval 호출로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-95
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - pattern: $ENGINE.eval($CODE)
+
+  - id: kisa-2021-05-java-os-command-injection
+    languages: [java]
+    message: 동적 값을 Runtime.exec에 전달하면 운영체제 명령어 삽입이 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-05
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 5
+      name: 운영체제 명령어 삽입
+      description: HttpServletRequest.getParameter 외부 입력이 Runtime.exec 명령 인자로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-78
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - pattern: Runtime.getRuntime().exec($COMMAND)
+
+  - id: kisa-2021-08-java-xxe-enabled
+    languages: [java]
+    message: XML 외부 개체 기능을 활성화하면 XXE 공격에 노출될 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-08
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 8
+      name: 부적절한 XML 외부 개체 참조
+      description: DocumentBuilderFactory에서 외부 일반 개체를 명시적으로 활성화한 설정을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-611
+    pattern: $FACTORY.setFeature("http://xml.org/sax/features/external-general-entities", true)
+
+  - id: kisa-2021-12-java-ssrf-dynamic-url
+    languages: [java]
+    message: 검증되지 않은 동적 URL로 서버 요청을 보내면 SSRF가 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-12
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 12
+      name: 서버사이드 요청 위조
+      description: HttpServletRequest.getParameter 외부 입력이 URL 연결 대상으로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-918
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - pattern: new URL($URL).openConnection()
+
+  - id: kisa-2021-20-java-world-accessible-permission
+    languages: [java]
+    message: 모든 사용자에게 자원 접근 권한을 부여하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-20
+      category_id: 2
+      category: 보안기능
+      category_number: 3
+      name: 중요한 자원에 대한 잘못된 권한 설정
+      description: File 권한을 소유자 전용이 아닌 전체 사용자에게 부여하는 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-732
+    pattern-either:
+      - pattern: $FILE.setReadable(true, false)
+      - pattern: $FILE.setWritable(true, false)
+      - pattern: $FILE.setExecutable(true, false)
+
+  - id: kisa-2021-21-java-weak-crypto
+    languages: [java]
+    message: MD5, SHA-1 또는 DES와 같은 취약한 암호 알고리즘을 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-21
+      category_id: 2
+      category: 보안기능
+      category_number: 4
+      name: 취약한 암호화 알고리즘 사용
+      description: Java 표준 암호 API에서 알려진 취약 알고리즘을 선택하는 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-327
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD5")
+      - pattern: MessageDigest.getInstance("SHA-1")
+      - pattern: Cipher.getInstance("DES")
+
+  - id: kisa-2021-23-java-hardcoded-secret
+    languages: [java]
+    message: 비밀번호, 토큰 또는 암호키를 소스코드에 하드코딩하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-23
+      category_id: 2
+      category: 보안기능
+      category_number: 6
+      name: 하드코드된 중요정보
+      description: 인증정보나 비밀값을 의미하는 이름의 변수에 긴 문자열 리터럴을 직접 할당한 선언을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-798
+    patterns:
+      - pattern: String $SECRET = $VALUE;
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: "(?i).*(password|passwd|secret|token|api_?key|private_?key).*"
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: "^[\"'][^\"']{8,}[\"']$"
+
+  - id: kisa-2021-24-java-short-rsa-key
+    languages: [java]
+    message: RSA 키 길이는 최소 2048비트 이상으로 설정하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-24
+      category_id: 2
+      category: 보안기능
+      category_number: 7
+      name: 충분하지 않은 키 길이 사용
+      description: RSA KeyPairGenerator를 2048비트 미만의 정적 길이로 초기화한 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-326
+    patterns:
+      - pattern: $GENERATOR.initialize($BITS)
+      - pattern-inside: |
+          KeyPairGenerator $GENERATOR = KeyPairGenerator.getInstance("RSA");
+          ...
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048
+
+  - id: kisa-2021-25-java-insecure-random-security-value
+    languages: [java]
+    message: 토큰과 같은 보안 값을 java.util.Random으로 생성하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-25
+      category_id: 2
+      category: 보안기능
+      category_number: 8
+      name: 적절하지 않은 난수 값 사용
+      description: 보안 관련 이름의 값 생성에 예측 가능한 Random API를 사용하는 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-330
+    patterns:
+      - pattern: $TYPE $SECURITY_VALUE = new Random(...).$METHOD(...);
+      - metavariable-regex:
+          metavariable: $SECURITY_VALUE
+          regex: "(?i).*(token|secret|nonce|session|password|otp|code|key).*"
+
+  - id: kisa-2021-28-java-trust-all-hostnames
+    languages: [java]
+    message: 모든 호스트명을 신뢰하는 검증기를 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-28
+      category_id: 2
+      category: 보안기능
+      category_number: 11
+      name: 부적절한 인증서 유효성 검증
+      description: TLS 호스트명 검증 콜백이 무조건 true를 반환하는 설정을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-295
+    pattern: $CONNECTION.setHostnameVerifier(($HOST, $SESSION) -> true)
+
+  - id: kisa-2021-29-java-insecure-cookie
+    languages: [java]
+    message: 세션·인증정보 등 민감한 쿠키를 사용자 디스크에 영속 저장하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-29
+      category_id: 2
+      category: 보안기능
+      category_number: 12
+      name: 사용자 하드디스크에 저장되는 쿠키를 통한 정보노출
+      description: 민감한 이름의 Java Cookie에 양수 Max-Age를 설정하여 사용자 디스크에 영속 저장하는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-539
+    patterns:
+      - pattern: $COOKIE.setMaxAge($SECONDS)
+      - pattern-inside: |
+          Cookie $COOKIE = new Cookie($NAME, ...);
+          ...
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^"[^"\r\n]*(?:session|auth|token|credential|password|passwd|secret)[^"\r\n]*"$'
+      - metavariable-comparison:
+          metavariable: $SECONDS
+          comparison: $SECONDS > 0
+
+  - id: kisa-2021-30-java-secret-in-comment
+    languages: [java]
+    message: 주석에 비밀번호, 토큰 또는 암호키 값을 남기지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-30
+      category_id: 2
+      category: 보안기능
+      category_number: 13
+      name: 주석문 안에 포함된 시스템 주요정보
+      description: Java 주석에 보안 관련 키와 긴 값이 함께 기록된 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-615
+    pattern-regex: '(?i)(?://|/\*)[^\r\n]*(?:password|passwd|secret|token|credential|api[_-]?key)\s*[:=]\s*(?:"[^"\r\n]{8,}"|''[^''\r\n]{8,}''|[^\s\r\n]{8,})'
+
+  - id: kisa-2021-31-java-unsalted-password-hash
+    languages: [java]
+    message: 비밀번호를 솔트 없이 직접 해시하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-31
+      category_id: 2
+      category: 보안기능
+      category_number: 14
+      name: 솔트 없이 일방향 해쉬 함수 사용
+      description: 비밀번호 이름의 값을 MessageDigest에 직접 전달하는 솔트 없는 해시 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-759
+    patterns:
+      - pattern: $DIGEST.digest($PASSWORD.getBytes(...))
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: "(?i).*(password|passwd|pwd).*"
+
+  - id: kisa-2021-35-java-unconditional-loop
+    languages: [java]
+    message: 종료 조건이 없는 반복문은 서비스 거부를 유발할 수 있습니다.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-35
+      category_id: 3
+      category: 시간 및 상태
+      category_number: 2
+      name: 종료되지 않는 반복문 또는 재귀함수
+      description: Java의 명시적인 while(true) 무한 반복문을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-835
+    patterns:
+      - pattern: |
+          while (true) {
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            break;
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            return;
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            return $VALUE;
+            ...
+          }
+
+  - id: kisa-2021-36-java-error-detail-exposure
+    languages: [java]
+    message: 예외 상세 메시지를 HTTP 응답으로 직접 노출하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-36
+      category_id: 4
+      category: 에러처리
+      category_number: 1
+      name: 오류 메시지 정보노출
+      description: 예외 메시지를 응답 Writer에 직접 기록하는 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-209
+    pattern: $RESPONSE.getWriter().write($EXCEPTION.getMessage())
+
+  - id: kisa-2021-37-java-empty-catch
+    languages: [java]
+    message: 예외를 아무 대응 없이 무시하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-37
+      category_id: 4
+      category: 에러처리
+      category_number: 2
+      name: 오류상황 대응 부재
+      description: Java의 비어 있는 catch 블록을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-390
+    pattern: |
+      try {
+        ...
+      } catch ($TYPE $EXCEPTION) {
+      }
+
+  - id: kisa-2021-38-java-overly-broad-catch
+    languages: [java]
+    message: 광범위한 Exception 대신 처리 가능한 구체 예외를 잡으세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-38
+      category_id: 4
+      category: 에러처리
+      category_number: 3
+      name: 부적절한 예외 처리
+      description: Java에서 Exception 또는 Throwable 전체를 잡는 광범위 예외 처리를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-754
+    pattern-either:
+      - pattern: |
+          try {
+            ...
+          } catch (Exception $EXCEPTION) {
+            ...
+          }
+      - pattern: |
+          try {
+            ...
+          } catch (Throwable $EXCEPTION) {
+            ...
+          }
+
+  - id: kisa-2021-43-java-unsafe-deserialization
+    languages: [java]
+    message: 신뢰할 수 없는 데이터에 Java 기본 역직렬화를 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-43
+      category_id: 5
+      category: 코드오류
+      category_number: 5
+      name: 신뢰할 수 없는 데이터의 역직렬화
+      description: ObjectInputStream으로 객체를 역직렬화하는 readObject 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-502
+    patterns:
+      - pattern: $STREAM.readObject()
+      - pattern-inside: |
+          ObjectInputStream $STREAM = new ObjectInputStream(...);
+          ...
+
+  - id: kisa-2021-45-java-leftover-debug-code
+    languages: [java]
+    message: 운영 코드에서 직접 스택 트레이스를 출력하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-45
+      category_id: 6
+      category: 캡슐화
+      category_number: 2
+      name: 제거되지 않고 남은 디버그 코드
+      description: Java 예외의 printStackTrace 직접 호출을 디버그 잔존 코드로 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-489
+    pattern: $EXCEPTION.printStackTrace()

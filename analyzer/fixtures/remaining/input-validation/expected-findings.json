@@ -1,0 +1,50 @@
+{
+  "kisa-2021-01-python-sql-injection": [
+    "remaining/input-validation/vulnerable.py",
+    7
+  ],
+  "kisa-2021-03-java-path-traversal": [
+    "remaining/input-validation/Vulnerable.java",
+    12
+  ],
+  "kisa-2021-04-javascript-xss": [
+    "remaining/input-validation/vulnerable.js",
+    3
+  ],
+  "kisa-2021-06-java-unsafe-upload-filename": [
+    "remaining/input-validation/Vulnerable.java",
+    16
+  ],
+  "kisa-2021-07-javascript-open-redirect": [
+    "remaining/input-validation/vulnerable.js",
+    8
+  ],
+  "kisa-2021-09-java-xpath-injection": [
+    "remaining/input-validation/Vulnerable.java",
+    23
+  ],
+  "kisa-2021-10-python-ldap-injection": [
+    "remaining/input-validation/vulnerable.py",
+    13
+  ],
+  "kisa-2021-11-java-csrf-disabled": [
+    "remaining/input-validation/Vulnerable.java",
+    27
+  ],
+  "kisa-2021-13-python-http-response-splitting": [
+    "remaining/input-validation/vulnerable.py",
+    18
+  ],
+  "kisa-2021-14-java-untrusted-allocation-size": [
+    "remaining/input-validation/Vulnerable.java",
+    31
+  ],
+  "kisa-2021-15-javascript-untrusted-auth-decision": [
+    "remaining/input-validation/vulnerable.js",
+    12
+  ],
+  "kisa-2021-17-java-format-string-injection": [
+    "remaining/input-validation/Vulnerable.java",
+    36
+  ]
+}

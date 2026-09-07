@@ -1,0 +1,13 @@
+{
+  "kisa-2021-22-python-plaintext-sensitive-data": ["remaining/automatic/vulnerable.py", 6],
+  "kisa-2021-27-javascript-ignored-signature-verification": ["remaining/automatic/vulnerable.js", 4],
+  "kisa-2021-32-python-download-and-execute": ["remaining/automatic/vulnerable.py", 10],
+  "kisa-2021-34-java-toctou-file-check": ["remaining/automatic/Vulnerable.java", 7],
+  "kisa-2021-39-java-null-dereference": ["remaining/automatic/Vulnerable.java", 15],
+  "kisa-2021-40-python-unclosed-resource": ["remaining/automatic/vulnerable.py", 14],
+  "kisa-2021-42-javascript-uninitialized-variable": ["remaining/automatic/vulnerable.js", 13],
+  "kisa-2021-46-java-private-array-return": ["remaining/automatic/Vulnerable.java", 24],
+  "kisa-2021-47-java-public-array-assignment": ["remaining/automatic/Vulnerable.java", 32],
+  "kisa-2021-48-java-dns-security-decision": ["remaining/automatic/Vulnerable.java", 38],
+  "kisa-2021-49-java-dangerous-api": ["remaining/automatic/Vulnerable.java", 44]
+}

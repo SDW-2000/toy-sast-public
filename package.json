@@ -1,0 +1,16 @@
+{
+  "name": "toy-sast",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22.13 <23"
+  },
+  "scripts": {
+    "dev": "pnpm --dir frontend dev",
+    "build": "pnpm --dir frontend build",
+    "lint": "pnpm --dir frontend lint",
+    "typecheck": "pnpm --dir frontend typecheck",
+    "test": "pnpm --dir frontend test"
+  }
+}

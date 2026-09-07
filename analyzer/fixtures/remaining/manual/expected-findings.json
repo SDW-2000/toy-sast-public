@@ -1,0 +1,9 @@
+{
+  "kisa-2021-16-java-native-memory-boundary": ["remaining/manual/Vulnerable.java", 10],
+  "kisa-2021-18-javascript-unprotected-sensitive-route": ["remaining/manual/vulnerable.js", 8],
+  "kisa-2021-19-python-object-access-without-ownership-check": ["remaining/manual/vulnerable.py", 12],
+  "kisa-2021-26-javascript-weak-password-policy": ["remaining/manual/vulnerable.js", 11],
+  "kisa-2021-33-python-login-without-rate-limit": ["remaining/manual/vulnerable.py", 15],
+  "kisa-2021-41-java-use-after-close": ["remaining/manual/Vulnerable.java", 13],
+  "kisa-2021-44-java-static-session-storage": ["remaining/manual/Vulnerable.java", 8]
+}

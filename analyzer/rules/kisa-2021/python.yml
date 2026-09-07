@@ -1,0 +1,442 @@
+rules:
+  - id: kisa-2021-02-python-code-injection
+    languages: [python]
+    message: 외부 입력을 eval, exec 또는 compile로 실행하면 임의 코드가 실행될 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-02
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 2
+      name: 코드 삽입
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 eval, exec 또는 compile 호출로 흐르는 경우를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-95
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval($CODE)
+          - pattern: exec($CODE)
+          - pattern: compile($CODE, ...)
+
+  - id: kisa-2021-05-python-os-command-injection
+    languages: [python]
+    message: 동적 값을 셸 명령 실행 함수에 전달하면 운영체제 명령어 삽입이 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-05
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 5
+      name: 운영체제 명령어 삽입
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 os.system이나 shell=True subprocess 명령으로 흐르는 경우를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-78
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: os.system($COMMAND)
+          - pattern: subprocess.run($COMMAND, ..., shell=True, ...)
+          - pattern: subprocess.Popen($COMMAND, ..., shell=True, ...)
+
+  - id: kisa-2021-08-python-unsafe-xml-parser
+    languages: [python]
+    message: lxml XMLParser에서 외부 개체 해석을 활성화하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-08
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 8
+      name: 부적절한 XML 외부 개체 참조
+      description: lxml.etree.XMLParser에서 resolve_entities=True로 외부 개체 해석을 명시적으로 활성화한 설정을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-611
+    pattern-either:
+      - patterns:
+          - pattern: $ETREE.XMLParser(..., resolve_entities=True, ...)
+          - pattern-inside: |
+              from lxml import etree as $ETREE
+              ...
+      - patterns:
+          - pattern: etree.XMLParser(..., resolve_entities=True, ...)
+          - pattern-inside: |
+              from lxml import etree
+              ...
+
+  - id: kisa-2021-12-python-ssrf-dynamic-url
+    languages: [python]
+    message: 검증되지 않은 동적 URL로 서버 요청을 보내면 SSRF가 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-12
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 12
+      name: 서버사이드 요청 위조
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 requests나 urllib 요청 URL로 흐르는 경우를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-918
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: urllib.request.urlopen($URL, ...)
+
+  - id: kisa-2021-20-python-world-writable-permission
+    languages: [python]
+    message: 모든 사용자가 쓸 수 있는 파일 권한을 설정하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-20
+      category_id: 2
+      category: 보안기능
+      category_number: 3
+      name: 중요한 자원에 대한 잘못된 권한 설정
+      description: Python chmod API에 다른 사용자 쓰기 비트가 포함된 정적 권한 모드를 설정하는 호출을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-732
+    patterns:
+      - pattern-either:
+          - pattern: os.chmod($PATH, $MODE)
+          - pattern: $PATH.chmod($MODE)
+      - metavariable-comparison:
+          metavariable: $MODE
+          comparison: ($MODE & 2) != 0
+
+  - id: kisa-2021-21-python-weak-crypto
+    languages: [python]
+    message: MD5 또는 SHA-1과 같은 취약한 해시 알고리즘을 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-21
+      category_id: 2
+      category: 보안기능
+      category_number: 4
+      name: 취약한 암호화 알고리즘 사용
+      description: Python hashlib API에서 MD5 또는 SHA-1 해시를 생성하는 호출을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-327
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+      - pattern: md5(...)
+      - pattern: sha1(...)
+
+  - id: kisa-2021-23-python-hardcoded-secret
+    languages: [python]
+    message: 비밀번호, 토큰 또는 암호키를 소스코드에 하드코딩하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-23
+      category_id: 2
+      category: 보안기능
+      category_number: 6
+      name: 하드코드된 중요정보
+      description: 인증정보나 비밀값을 의미하는 이름의 변수에 긴 문자열 리터럴을 직접 할당한 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-798
+    patterns:
+      - pattern: $SECRET = $VALUE
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: "(?i).*(password|passwd|secret|token|api_?key|private_?key).*"
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: "^[\"'][^\"']{8,}[\"']$"
+
+  - id: kisa-2021-24-python-short-rsa-key
+    languages: [python]
+    message: RSA 키 길이는 최소 2048비트 이상으로 설정하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-24
+      category_id: 2
+      category: 보안기능
+      category_number: 7
+      name: 충분하지 않은 키 길이 사용
+      description: cryptography RSA 키 생성에서 2048비트 미만의 정적 길이를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-326
+    patterns:
+      - pattern: rsa.generate_private_key(..., key_size=$BITS, ...)
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048
+
+  - id: kisa-2021-25-python-insecure-random-security-value
+    languages: [python]
+    message: 토큰과 같은 보안 값을 random 모듈로 생성하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-25
+      category_id: 2
+      category: 보안기능
+      category_number: 8
+      name: 적절하지 않은 난수 값 사용
+      description: 보안 관련 이름의 값 생성에 예측 가능한 random 모듈을 사용하는 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-330
+    patterns:
+      - pattern-either:
+          - pattern: $SECURITY_VALUE = random.random()
+          - pattern: $SECURITY_VALUE = random.randint(...)
+          - pattern: $SECURITY_VALUE = random.choice(...)
+      - metavariable-regex:
+          metavariable: $SECURITY_VALUE
+          regex: "(?i).*(token|secret|nonce|session|password|otp|code|key).*"
+
+  - id: kisa-2021-28-python-tls-verification-disabled
+    languages: [python]
+    message: TLS 인증서 검증을 비활성화하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-28
+      category_id: 2
+      category: 보안기능
+      category_number: 11
+      name: 부적절한 인증서 유효성 검증
+      description: requests 계열 HTTP 호출에서 verify=False를 지정한 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-295
+    pattern-either:
+      - pattern: requests.get(..., verify=False, ...)
+      - pattern: requests.post(..., verify=False, ...)
+      - pattern: requests.request(..., verify=False, ...)
+
+  - id: kisa-2021-29-python-insecure-cookie
+    languages: [python]
+    message: 세션·인증정보 등 민감한 쿠키를 사용자 디스크에 영속 저장하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-29
+      category_id: 2
+      category: 보안기능
+      category_number: 12
+      name: 사용자 하드디스크에 저장되는 쿠키를 통한 정보노출
+      description: 민감한 이름의 Python 웹 응답 쿠키에 양수 max_age를 설정하여 사용자 디스크에 영속 저장하는 경우를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-539
+    patterns:
+      - pattern: $RESPONSE.set_cookie($NAME, $VALUE, ..., max_age=$SECONDS, ...)
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^["''][^"''\r\n]*(?:session|auth|token|credential|password|passwd|secret)[^"''\r\n]*["'']$'
+      - metavariable-comparison:
+          metavariable: $SECONDS
+          comparison: $SECONDS > 0
+
+  - id: kisa-2021-30-python-secret-in-comment
+    languages: [python]
+    message: 주석에 비밀번호, 토큰 또는 암호키 값을 남기지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-30
+      category_id: 2
+      category: 보안기능
+      category_number: 13
+      name: 주석문 안에 포함된 시스템 주요정보
+      description: Python 주석에 보안 관련 키와 긴 값이 함께 기록된 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-615
+    pattern-regex: '(?i)#[^\r\n]*(?:password|passwd|secret|token|credential|api[_-]?key)\s*[:=]\s*(?:"[^"\r\n]{8,}"|''[^''\r\n]{8,}''|[^\s\r\n]{8,})'
+
+  - id: kisa-2021-31-python-unsalted-password-hash
+    languages: [python]
+    message: 비밀번호를 솔트 없이 직접 해시하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-31
+      category_id: 2
+      category: 보안기능
+      category_number: 14
+      name: 솔트 없이 일방향 해쉬 함수 사용
+      description: 비밀번호 이름의 값을 hashlib 해시에 직접 전달하는 솔트 없는 해시 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-759
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.sha256($PASSWORD).hexdigest()
+          - pattern: hashlib.sha512($PASSWORD).hexdigest()
+          - pattern: hashlib.sha256($PASSWORD).digest()
+          - pattern: hashlib.sha512($PASSWORD).digest()
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: "(?i).*(password|passwd|pwd).*"
+
+  - id: kisa-2021-35-python-unconditional-loop
+    languages: [python]
+    message: 종료 조건이 없는 반복문은 서비스 거부를 유발할 수 있습니다.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-35
+      category_id: 3
+      category: 시간 및 상태
+      category_number: 2
+      name: 종료되지 않는 반복문 또는 재귀함수
+      description: Python의 명시적인 while True 무한 반복문을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-835
+    patterns:
+      - pattern: |
+          while True:
+              ...
+      - pattern-not: |
+          while True:
+              ...
+              break
+              ...
+      - pattern-not: |
+          while True:
+              ...
+              return
+              ...
+      - pattern-not: |
+          while True:
+              ...
+              return $VALUE
+              ...
+
+  - id: kisa-2021-36-python-error-detail-exposure
+    languages: [python]
+    message: 오류 스택을 HTTP 응답으로 직접 노출하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-36
+      category_id: 4
+      category: 에러처리
+      category_number: 1
+      name: 오류 메시지 정보노출
+      description: traceback.format_exc 결과를 함수 응답으로 직접 반환하는 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-209
+    pattern: return traceback.format_exc()
+
+  - id: kisa-2021-37-python-empty-except
+    languages: [python]
+    message: 예외를 아무 대응 없이 무시하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-37
+      category_id: 4
+      category: 에러처리
+      category_number: 2
+      name: 오류상황 대응 부재
+      description: Python except 블록에서 pass로 예외를 무시하는 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-390
+    pattern: |
+      try:
+          ...
+      except $EXCEPTION:
+          pass
+
+  - id: kisa-2021-38-python-overly-broad-except
+    languages: [python]
+    message: 광범위한 Exception 또는 bare except 대신 구체 예외를 처리하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-38
+      category_id: 4
+      category: 에러처리
+      category_number: 3
+      name: 부적절한 예외 처리
+      description: Python에서 Exception 전체 또는 bare except를 사용하는 광범위 예외 처리를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-754
+    pattern-either:
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              ...
+      - pattern: |
+          try:
+              ...
+          except Exception as $ERROR:
+              ...
+      - pattern: |
+          try:
+              ...
+          except:
+              ...
+
+  - id: kisa-2021-43-python-unsafe-deserialization
+    languages: [python]
+    message: 신뢰할 수 없는 데이터에 pickle 역직렬화를 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-43
+      category_id: 5
+      category: 코드오류
+      category_number: 5
+      name: 신뢰할 수 없는 데이터의 역직렬화
+      description: Python pickle 또는 dill 역직렬화 호출을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-502
+    pattern-either:
+      - pattern: pickle.loads($DATA)
+      - pattern: pickle.load($DATA)
+      - pattern: dill.loads($DATA)
+      - pattern: dill.load($DATA)
+
+  - id: kisa-2021-45-python-leftover-debug-code
+    languages: [python]
+    message: 운영 코드에 디버거 중단점을 남기지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-45
+      category_id: 6
+      category: 캡슐화
+      category_number: 2
+      name: 제거되지 않고 남은 디버그 코드
+      description: Python breakpoint 또는 pdb.set_trace 호출을 디버그 잔존 코드로 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-489
+    pattern-either:
+      - pattern: breakpoint()
+      - pattern: pdb.set_trace()

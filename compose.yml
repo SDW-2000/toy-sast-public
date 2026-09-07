@@ -1,0 +1,142 @@
+name: toy-sast
+
+services:
+  postgres:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-toy_sast}
+      POSTGRES_USER: ${POSTGRES_USER:-toy_sast}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      TZ: UTC
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-toy_sast} -d ${POSTGRES_DB:-toy_sast}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: api
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      SESSION_ABSOLUTE_TTL_SECONDS: ${SESSION_ABSOLUTE_TTL_SECONDS:-3600}
+      INVITATION_TTL_SECONDS: ${INVITATION_TTL_SECONDS:-86400}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@toy-sast.local}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-52428800}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-53477376}
+    ports:
+      - "${API_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [frontend, backend]
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - 127.0.0.1:8025:8025
+    networks: [frontend, backend]
+    restart: unless-stopped
+
+  migration:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: api
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    restart: "no"
+
+  worker-analyzer:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: worker
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      HOME: /tmp
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      SOURCE_STORAGE_ROOT: ${SOURCE_STORAGE_ROOT:-/data/sources}
+      WORKSPACE_ROOT: ${WORKSPACE_ROOT:-/work}
+      ANALYSIS_TIMEOUT_SECONDS: ${ANALYSIS_TIMEOUT_SECONDS:-300}
+      ANALYSIS_IDLE_TIMEOUT_SECONDS: ${ANALYSIS_IDLE_TIMEOUT_SECONDS:-180}
+      ANALYSIS_MAX_TIMEOUT_SECONDS: ${ANALYSIS_MAX_TIMEOUT_SECONDS:-1800}
+      ANALYSIS_HEARTBEAT_SECONDS: ${ANALYSIS_HEARTBEAT_SECONDS:-30}
+      ANALYZER_MAX_OUTPUT_BYTES: ${ANALYZER_MAX_OUTPUT_BYTES:-16777216}
+      ANALYZER_MAX_FINDINGS: ${ANALYZER_MAX_FINDINGS:-10000}
+      ANALYZER_RULES_ROOT: ${ANALYZER_RULES_ROOT:-/analyzer/rules}
+      SCAN_JOB_LEASE_SECONDS: ${SCAN_JOB_LEASE_SECONDS:-600}
+      SCAN_MAX_ATTEMPTS: ${SCAN_MAX_ATTEMPTS:-3}
+    volumes:
+      - source_data:/data/sources
+      - workspace_data:/work
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "from pathlib import Path; assert Path('/tmp/worker-ready').exists()"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: ${ANALYZER_MEMORY_LIMIT:-4g}
+    cpus: 2.0
+    networks: [backend]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:3000:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [frontend]
+    restart: unless-stopped
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+  source_data:
+  workspace_data:

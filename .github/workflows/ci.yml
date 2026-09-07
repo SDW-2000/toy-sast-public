@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@11.19.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.12.5
+          python-version: 3.12
+      - working-directory: backend
+        run: uv sync --frozen --group dev --no-group analyzer
+      - working-directory: backend
+        run: uv run ruff check .
+      - working-directory: backend
+        run: uv run mypy app tests
+      - working-directory: backend
+        run: uv run pytest
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci-only-password/' .env
+      - run: sed -i 's#CHANGE_ME#ci-only-password#' .env
+      - run: sed -i 's/^SESSION_SECRET=$/SESSION_SECRET=ci-only-session-secret/' .env
+      - run: docker compose config --quiet
+      - run: docker compose build
+      - run: docker compose up --detach --wait
+      - run: ./scripts/smoke.sh
+      - run: docker compose run --rm worker-analyzer /analyzer/scripts/verify-languages.sh
+      - if: always()
+        run: docker compose down

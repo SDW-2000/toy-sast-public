@@ -1,0 +1,165 @@
+rules:
+  - id: kisa-2021-16-java-native-memory-boundary
+    languages: [java]
+    message: JNI/native 메모리 경계가 존재합니다. 취약 확정이 아니므로 버퍼 길이 검증과 native 구현을 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-16
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 16
+      name: 메모리 버퍼 오버플로우
+      description: Java native 메서드 선언은 JVM 밖의 메모리 경계를 통과한다는 위험 신호입니다. 선언만으로 취약을 확정하지 않고 길이 검증과 JNI 구현을 수동 검토해야 합니다.
+      language: java
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-119
+    pattern-either:
+      - pattern: public native $RETURN_TYPE $METHOD(...);
+      - pattern: protected native $RETURN_TYPE $METHOD(...);
+      - pattern: private native $RETURN_TYPE $METHOD(...);
+      - pattern: static native $RETURN_TYPE $METHOD(...);
+
+  - id: kisa-2021-18-javascript-unprotected-sensitive-route
+    languages: [javascript]
+    message: 민감 경로가 인증 middleware 인자 없이 직접 등록되었습니다. 취약 확정이 아니므로 실제 인증 적용 여부를 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-18
+      category_id: 2
+      category: 보안기능
+      category_number: 1
+      name: 적절한 인증 없는 중요 기능 허용
+      description: admin·management·internal·중요 account 경로가 단일 handler로 직접 등록된 위험 신호입니다. 전역 인증 등 다른 보호 수단을 수동 검토해야 합니다.
+      language: javascript
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-306
+    patterns:
+      - pattern-either:
+          - pattern: $APP.post($ROUTE, $HANDLER)
+          - pattern: $APP.put($ROUTE, $HANDLER)
+          - pattern: $APP.patch($ROUTE, $HANDLER)
+          - pattern: $APP.delete($ROUTE, $HANDLER)
+      - metavariable-regex:
+          metavariable: $ROUTE
+          regex: '(?i)^["''`](?:/(?:admin|management|internal|account/(?:delete|password|transfer)))(?:/[^"''`]*)?["''`]$'
+
+  - id: kisa-2021-19-python-object-access-without-ownership-check
+    languages: [python]
+    message: 외부 객체 ID로 조회한 객체를 소유권 조건 없이 직접 반환합니다. IDOR 후보일 뿐이므로 인가 흐름을 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-19
+      category_id: 2
+      category: 보안기능
+      category_number: 2
+      name: 부적절한 인가
+      description: HTTP 경로 인자의 객체 ID를 ORM get에 전달하고 결과를 직접 반환하는 IDOR 위험 신호입니다. 모델 훅·전역 정책을 포함한 소유권 검사를 수동 검토해야 합니다.
+      language: python
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-639
+    patterns:
+      - pattern: return $MODEL.query.get($OBJECT_ID)
+      - pattern-either:
+          - pattern-inside: |
+              @$APP.get(...)
+              def $HANDLER(..., $OBJECT_ID, ...):
+                ...
+          - pattern-inside: |
+              @$APP.route(...)
+              def $HANDLER(..., $OBJECT_ID, ...):
+                ...
+      - metavariable-regex:
+          metavariable: $OBJECT_ID
+          regex: '(?i).*(?:^|_)id$'
+
+  - id: kisa-2021-26-javascript-weak-password-policy
+    languages: [javascript]
+    message: 명시된 비밀번호 최소 길이가 8자 미만입니다. 정책 전체를 반영한 취약 확정이 아니므로 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-26
+      category_id: 2
+      category: 보안기능
+      category_number: 9
+      name: 취약한 비밀번호 허용
+      description: 비밀번호 이름의 값에 대해 8보다 작은 정적 최소 길이를 검사하는 위험 신호입니다. 조합규칙과 외부 정책을 포함한 실제 강도를 수동 검토해야 합니다.
+      language: javascript
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-521
+    patterns:
+      - pattern: |
+          if ($PASSWORD.length < $MINIMUM) {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: '(?i).*(?:password|passwd|passphrase).*'
+      - metavariable-comparison:
+          metavariable: $MINIMUM
+          comparison: $MINIMUM < 8
+
+  - id: kisa-2021-33-python-login-without-rate-limit
+    languages: [python]
+    message: 로그인 경로가 rate limiter 의존성 없이 직접 등록되었습니다. 취약 확정이 아니므로 반복 인증 제한을 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-33
+      category_id: 2
+      category: 보안기능
+      category_number: 16
+      name: 반복된 인증시도 제한 기능 부재
+      description: 로그인 경로 handler에 rate limiter 의존성이 보이지 않는 위험 신호입니다. gateway·middleware 등 외부 제한까지 포함하여 수동 검토해야 합니다.
+      language: python
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-307
+    patterns:
+      - pattern: |
+          @$APP.post($ROUTE, ...)
+          def $HANDLER(...):
+            ...
+      - metavariable-regex:
+          metavariable: $ROUTE
+          regex: '(?i)^["'']/(?:login|signin|authenticate)["'']$'
+      - pattern-not: |
+          @$APP.post($ROUTE, ..., dependencies=[Depends($LIMITER(...))], ...)
+          def $HANDLER(...):
+            ...
+
+  - id: kisa-2021-41-java-use-after-close
+    languages: [java]
+    message: close 호출 뒤 동일 자원을 다시 사용합니다. 취약 확정이 아니므로 자원 생명주기와 별칭을 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-41
+      category_id: 5
+      category: 코드오류
+      category_number: 3
+      name: 해제된 자원 사용
+      description: 동일 Java 객체에서 close 호출 이후 다른 메서드를 호출하는 직접적인 위험 신호입니다. 메서드 의미와 재초기화·별칭 여부를 수동 검토해야 합니다.
+      language: java
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-672
+    patterns:
+      - pattern: |
+          $RESOURCE.close();
+          ...
+          $RESOURCE.$METHOD(...);
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: '^(?!close$).+'
+
+  - id: kisa-2021-44-java-static-session-storage
+    languages: [java]
+    message: HttpSession이 static 필드에 저장됩니다. 취약 확정이 아니므로 사용자 간 세션 공유 가능성을 수동 검토하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-44
+      category_id: 6
+      category: 캡슐화
+      category_number: 1
+      name: 잘못된 세션에 의한 데이터 정보노출
+      description: 요청별 HttpSession을 static 필드에 보관하는 직접적인 위험 신호입니다. 동시 사용자 간 데이터 혼선 가능성을 수동 검토해야 합니다.
+      language: java
+      implementation_status: MANUAL_REVIEW_REQUIRED
+      cwe: CWE-488
+    pattern: private static HttpSession $SESSION;

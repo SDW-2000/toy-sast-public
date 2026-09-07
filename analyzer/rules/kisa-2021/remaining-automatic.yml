@@ -1,0 +1,322 @@
+rules:
+  - id: kisa-2021-22-python-plaintext-sensitive-data
+    languages: [python]
+    message: 비밀번호·토큰 등 중요정보를 평문 파일에 직접 기록하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-22
+      category_id: 2
+      category: 보안기능
+      category_number: 5
+      name: 암호화되지 않은 중요정보
+      description: 함수의 원시 비밀번호·토큰·키 인자가 암호화나 해시 없이 Python 텍스트 파일 쓰기로 흐르는 평문 저장 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-312
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $SENSITIVE
+          - pattern-inside: |
+              def $FUNCTION(..., $SENSITIVE, ...):
+                  ...
+          - metavariable-regex:
+              metavariable: $SENSITIVE
+              regex: "(?i)^(?!.*(?:hash|digest|encrypt|cipher)).*(?:password|passwd|secret|token|api_?key|private_?key|credential).*"
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: $CIPHER.encrypt(...)
+          - pattern: hashlib.$HASH(...)
+          - pattern: bcrypt.hashpw(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $FILE.write($VALUE)
+          - focus-metavariable: $VALUE
+          - pattern-either:
+              - pattern-inside: |
+                  with open(..., "w", ...) as $FILE:
+                      ...
+              - pattern-inside: |
+                  with open(..., "a", ...) as $FILE:
+                      ...
+              - pattern-inside: |
+                  with open(..., "x", ...) as $FILE:
+                      ...
+              - pattern-inside: |
+                  with open(..., "wt", ...) as $FILE:
+                      ...
+              - pattern-inside: |
+                  with open(..., "at", ...) as $FILE:
+                      ...
+              - pattern-inside: |
+                  with open(..., "xt", ...) as $FILE:
+                      ...
+
+  - id: kisa-2021-27-javascript-ignored-signature-verification
+    languages: [javascript]
+    message: 전자서명 검증 결과를 확인하지 않고 버리지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-27
+      category_id: 2
+      category: 보안기능
+      category_number: 10
+      name: 부적절한 전자서명 확인
+      description: Node.js crypto.verify 반환값을 대입·분기·반환 없이 표현식 문장으로 버리는 직접 패턴을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-347
+    patterns:
+      - pattern: $CRYPTO.verify(...)
+      - pattern-inside: |
+          const $CRYPTO = require("node:crypto")
+          ...
+      - pattern-not-inside: const $RESULT = $CRYPTO.verify(...)
+      - pattern-not-inside: let $RESULT = $CRYPTO.verify(...)
+      - pattern-not-inside: var $RESULT = $CRYPTO.verify(...)
+      - pattern-not-inside: return $CRYPTO.verify(...)
+      - pattern-not-inside: |
+          if ($CRYPTO.verify(...)) {
+            ...
+          }
+      - pattern-not-inside: |
+          if (!$CRYPTO.verify(...)) {
+            ...
+          }
+
+  - id: kisa-2021-32-python-download-and-execute
+    languages: [python]
+    message: 다운로드한 코드를 무결성 검사 없이 즉시 실행하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-32
+      category_id: 2
+      category: 보안기능
+      category_number: 15
+      name: 무결성 검사 없는 코드 다운로드
+      description: requests 또는 urllib로 내려받은 응답 내용을 중간 무결성 검증 없이 exec에 직접 전달하는 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-494
+    pattern-either:
+      - pattern: exec(requests.get(...).text)
+      - pattern: exec(urllib.request.urlopen(...).read())
+
+  - id: kisa-2021-34-java-toctou-file-check
+    languages: [java]
+    message: 파일 상태를 확인한 뒤 비원자적 작업을 수행하면 TOCTOU 경쟁조건이 발생할 수 있습니다.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-34
+      category_id: 3
+      category: 시간 및 상태
+      category_number: 1
+      name: "경쟁조건 : 검사 시점과 사용 시점(TOCTOU)"
+      description: File.exists 확인이 참인 분기에서 같은 File 객체를 별도 delete하는 check-then-use 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-367
+    patterns:
+      - pattern: $FILE.delete()
+      - pattern-inside: |
+          if ($FILE.exists()) {
+            ...
+          }
+
+  - id: kisa-2021-39-java-null-dereference
+    languages: [java]
+    message: null로 초기화한 객체를 확인 없이 바로 역참조하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-39
+      category_id: 5
+      category: 코드오류
+      category_number: 1
+      name: Null Pointer 역참조
+      description: 지역 변수를 null로 명시 초기화한 직후 멤버 메서드를 호출하는 직접 역참조 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-476
+    pattern: |
+      $TYPE $VALUE = null;
+      $VALUE.$METHOD(...);
+
+  - id: kisa-2021-40-python-unclosed-resource
+    languages: [python]
+    message: 파일 자원은 with 문이나 명시적 close로 반드시 해제하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-40
+      category_id: 5
+      category: 코드오류
+      category_number: 2
+      name: 부적절한 자원 해제
+      description: open으로 획득한 파일 핸들이 이후 명시적으로 close되지 않는 직접 자원 획득 패턴을 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-404
+    patterns:
+      - pattern: $HANDLE = open(...)
+      - pattern-not-inside: |
+          $HANDLE = open(...)
+          ...
+          $HANDLE.close()
+
+  - id: kisa-2021-42-javascript-uninitialized-variable
+    languages: [javascript]
+    message: 초기화하지 않은 JavaScript 지역 변수의 속성을 읽기 전에 값을 할당하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-42
+      category_id: 5
+      category: 코드오류
+      category_number: 4
+      name: 초기화되지 않은 변수 사용
+      description: JavaScript let 지역 변수를 초기화하지 않은 채 바로 속성을 반환해 undefined 역참조가 발생하는 유효 구문 패턴을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-457
+    pattern: |
+      let $VALUE;
+      return $VALUE.$PROPERTY;
+
+  - id: kisa-2021-46-java-private-array-return
+    languages: [java]
+    message: private 배열을 public 메서드에서 직접 반환하지 말고 방어적 복사본을 반환하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-46
+      category_id: 6
+      category: 캡슐화
+      category_number: 3
+      name: Public 메서드부터 반환된 Private 배열
+      description: public 메서드가 클래스의 private 배열 필드를 clone이나 copy 없이 직접 반환하는 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-495
+    patterns:
+      - pattern: return $FIELD;
+      - pattern-inside: |
+          public $RETURN $METHOD(...) {
+            ...
+          }
+      - pattern-either:
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private $ELEMENT[] $FIELD;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private $ELEMENT[] $FIELD = $INITIALIZER;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private final $ELEMENT[] $FIELD;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private final $ELEMENT[] $FIELD = $INITIALIZER;
+                ...
+              }
+
+  - id: kisa-2021-47-java-public-array-assignment
+    languages: [java]
+    message: public 입력 배열을 private 필드에 직접 저장하지 말고 방어적으로 복사하세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-47
+      category_id: 6
+      category: 캡슐화
+      category_number: 4
+      name: Private 배열에 Public 데이터 할당
+      description: public 메서드의 배열 인자를 클래스의 private 배열 필드에 방어적 복사 없이 직접 대입하는 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-496
+    patterns:
+      - pattern: this.$FIELD = $PARAM;
+      - pattern-inside: |
+          public $RETURN $METHOD($ELEMENT[] $PARAM) {
+            ...
+          }
+      - pattern-either:
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private $ELEMENT[] $FIELD;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private $ELEMENT[] $FIELD = $INITIALIZER;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private final $ELEMENT[] $FIELD;
+                ...
+              }
+          - pattern-inside: |
+              class $CLASS {
+                ...
+                private final $ELEMENT[] $FIELD = $INITIALIZER;
+                ...
+              }
+
+  - id: kisa-2021-48-java-dns-security-decision
+    languages: [java]
+    message: DNS 조회 결과를 접근 허용 등 보안결정에 직접 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-48
+      category_id: 7
+      category: API 오용
+      category_number: 1
+      name: DNS lookup에 의존한 보안결정
+      description: 보안결정 성격의 boolean 메서드가 reverse DNS 호스트명 비교 결과를 직접 반환하는 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-350
+    patterns:
+      - pattern-either:
+          - pattern: return $ADDRESS.getHostName().$CHECK(...);
+          - pattern: return $ADDRESS.getCanonicalHostName().$CHECK(...);
+      - pattern-inside: |
+          boolean $DECISION(...) {
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $DECISION
+          regex: "(?i).*(allow|authoriz|trust|access|permit).*"
+      - metavariable-regex:
+          metavariable: $CHECK
+          regex: "^(equals|equalsIgnoreCase|startsWith|endsWith|matches)$"
+
+  - id: kisa-2021-49-java-dangerous-api
+    languages: [java]
+    message: 강제 스레드 종료 API인 Thread.stop을 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-49
+      category_id: 7
+      category: API 오용
+      category_number: 2
+      name: 취약한 API 사용
+      description: 비동기 강제 종료로 객체 상태를 손상시킬 수 있는 폐기 API Thread.stop 직접 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-676
+    patterns:
+      - pattern: $THREAD.stop()
+      - metavariable-type:
+          metavariable: $THREAD
+          type: Thread

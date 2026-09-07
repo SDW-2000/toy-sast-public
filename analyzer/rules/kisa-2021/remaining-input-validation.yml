@@ -1,0 +1,328 @@
+rules:
+  - id: kisa-2021-01-python-sql-injection
+    languages: [python]
+    message: 외부 입력으로 SQL 질의문을 조립하지 말고 매개변수 바인딩을 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-01
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 1
+      name: SQL 삽입
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 Python DB-API execute나 executemany의 SQL 질의문 인자로 흐르는 경우를 탐지합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-89
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $CURSOR.execute($QUERY, ...)
+              - pattern: $CURSOR.executemany($QUERY, ...)
+          - focus-metavariable: $QUERY
+
+  - id: kisa-2021-03-java-path-traversal
+    languages: [java]
+    message: 외부 입력을 파일 경로로 직접 결합하지 말고 정규화한 경로가 허용 루트 내부인지 확인하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-03
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 3
+      name: 경로 조작 및 자원 삽입
+      description: HttpServletRequest.getParameter 외부 입력이 java.io.File의 하위 경로 인자로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-22
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - patterns:
+          - pattern: new File($BASE, $PATH)
+          - focus-metavariable: $PATH
+
+  - id: kisa-2021-04-javascript-xss
+    languages: [javascript]
+    message: 외부 입력을 HTML 응답으로 직접 출력하지 말고 출력 문맥에 맞게 인코딩하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-04
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 4
+      name: 크로스사이트 스크립트
+      description: Express 요청의 query, body 또는 params 외부 입력이 response.send나 response.write의 HTML 응답 값으로 흐르는 경우를 탐지하며 escapeHtml 호출 결과는 제외합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-79
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.query.$FIELD
+          - pattern: $REQUEST.body.$FIELD
+          - pattern: $REQUEST.params.$FIELD
+          - pattern: $REQUEST.query[$FIELD]
+          - pattern: $REQUEST.body[$FIELD]
+          - pattern: $REQUEST.params[$FIELD]
+    pattern-sanitizers:
+      - pattern: escapeHtml(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $RESPONSE.send($HTML)
+              - pattern: $RESPONSE.write($HTML)
+          - focus-metavariable: $HTML
+
+  - id: kisa-2021-06-java-unsafe-upload-filename
+    languages: [java]
+    message: 업로드 원본 파일명을 저장 경로로 직접 사용하지 말고 서버가 생성한 안전한 파일명과 비실행 저장소를 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-06
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 6
+      name: 위험한 형식 파일 업로드
+      description: Spring MultipartFile의 신뢰할 수 없는 원본 파일명을 저장 경로에 직접 사용하는 명시적 위험 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-434
+    pattern: $FILE.transferTo($DIRECTORY.resolve($FILE.getOriginalFilename()))
+
+  - id: kisa-2021-07-javascript-open-redirect
+    languages: [javascript]
+    message: 외부 입력으로 리다이렉트 대상을 직접 결정하지 말고 허용된 로컬 경로만 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-07
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 7
+      name: 신뢰되지 않는 URL 주소로 자동접속 연결
+      description: Express 요청의 query, body 또는 params 외부 입력이 response.redirect 대상으로 흐르는 경우를 탐지하며 enforceLocalRedirect 호출 결과는 제외합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-601
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.query.$FIELD
+          - pattern: $REQUEST.body.$FIELD
+          - pattern: $REQUEST.params.$FIELD
+          - pattern: $REQUEST.query[$FIELD]
+          - pattern: $REQUEST.body[$FIELD]
+          - pattern: $REQUEST.params[$FIELD]
+    pattern-sanitizers:
+      - pattern: enforceLocalRedirect(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $RESPONSE.redirect($URL)
+          - focus-metavariable: $URL
+
+  - id: kisa-2021-09-java-xpath-injection
+    languages: [java]
+    message: 외부 입력으로 XPath 표현식을 조립하지 말고 고정 표현식과 애플리케이션 측 비교를 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-09
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 9
+      name: XML 삽입
+      description: HttpServletRequest.getParameter 외부 입력이 javax.xml.xpath.XPath.evaluate의 표현식 인자로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-643
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - patterns:
+          - pattern: $XPATH.evaluate($EXPRESSION, ...)
+          - focus-metavariable: $EXPRESSION
+
+  - id: kisa-2021-10-python-ldap-injection
+    languages: [python]
+    message: 외부 입력을 LDAP 필터에 직접 연결하지 말고 LDAP 필터 이스케이프 함수를 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-10
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 10
+      name: LDAP 삽입
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 python-ldap search_s의 필터 인자로 흐르는 경우를 탐지하며 escape_filter_chars 호출 결과는 제외합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-90
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sanitizers:
+      - pattern: escape_filter_chars(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $CONNECTION.search_s($BASE, $SCOPE, $FILTER, ...)
+          - focus-metavariable: $FILTER
+
+  - id: kisa-2021-11-java-csrf-disabled
+    languages: [java]
+    message: Spring Security의 CSRF 보호를 비활성화하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-11
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 11
+      name: 크로스사이트 요청 위조
+      description: Spring Security HttpSecurity 구성에서 csrf().disable()로 CSRF 보호를 명시적으로 비활성화한 호출을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-352
+    pattern: $HTTP.csrf().disable()
+
+  - id: kisa-2021-13-python-http-response-splitting
+    languages: [python]
+    message: 외부 입력을 HTTP 응답 헤더에 직접 기록하지 말고 CR과 LF를 거부하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-13
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 13
+      name: HTTP 응답분할
+      description: Flask request.args, request.form 또는 request.json 외부 입력이 response.headers 헤더 값으로 흐르는 경우를 탐지하며 sanitize_header 호출 결과는 제외합니다.
+      language: python
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-113
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: request.args.get(...)
+          - pattern: request.form.get(...)
+          - pattern: request.json.get(...)
+          - pattern: request.args[$KEY]
+          - pattern: request.form[$KEY]
+          - pattern: request.json[$KEY]
+    pattern-sanitizers:
+      - pattern: sanitize_header(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $RESPONSE.headers[$HEADER] = $VALUE
+          - focus-metavariable: $VALUE
+
+  - id: kisa-2021-14-java-untrusted-allocation-size
+    languages: [java]
+    message: 외부 정수 입력으로 배열 크기를 곱할 때 오버플로우를 검사하고 Math.multiplyExact 등 checked 연산을 사용하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-14
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 14
+      name: 정수형 오버플로우
+      description: HttpServletRequest.getParameter 값을 int로 변환한 뒤 검사 없는 곱셈 결과를 byte 배열 크기로 직접 사용하는 오버플로우 가능 패턴을 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-190
+    patterns:
+      - pattern-either:
+          - pattern: new byte[Integer.parseInt($REQUEST.getParameter(...)) * $MULTIPLIER]
+          - pattern: new byte[$MULTIPLIER * Integer.parseInt($REQUEST.getParameter(...))]
+      - metavariable-type:
+          metavariable: $REQUEST
+          type: HttpServletRequest
+      - metavariable-comparison:
+          metavariable: $MULTIPLIER
+          comparison: $MULTIPLIER > 1
+
+  - id: kisa-2021-15-javascript-untrusted-auth-decision
+    languages: [javascript]
+    message: 요청에서 받은 role, admin 또는 permission 값을 인증·인가 상태에 직접 저장하지 말고 서버의 신뢰 가능한 권한 정보로 결정하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-15
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 15
+      name: 보안기능 결정에 사용되는 부적절한 입력값
+      description: Express 요청의 body, query 또는 params에서 읽은 role, isAdmin, authorized, permission 값이 사용자·세션·응답 로컬의 권한 속성에 직접 저장되는 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-807
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.body.role
+          - pattern: $REQUEST.body.isAdmin
+          - pattern: $REQUEST.body.authorized
+          - pattern: $REQUEST.body.permission
+          - pattern: $REQUEST.query.role
+          - pattern: $REQUEST.query.isAdmin
+          - pattern: $REQUEST.query.authorized
+          - pattern: $REQUEST.query.permission
+          - pattern: $REQUEST.params.role
+          - pattern: $REQUEST.params.isAdmin
+          - pattern: $REQUEST.params.authorized
+          - pattern: $REQUEST.params.permission
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $TARGET.role = $DECISION
+              - pattern: $TARGET.isAdmin = $DECISION
+              - pattern: $TARGET.authorized = $DECISION
+              - pattern: $TARGET.permission = $DECISION
+              - pattern: $TARGET.permissions = $DECISION
+          - focus-metavariable: $DECISION
+
+  - id: kisa-2021-17-java-format-string-injection
+    languages: [java]
+    message: 외부 입력을 printf 계열 API의 포맷 문자열로 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-17
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 17
+      name: 포맷 스트링 삽입
+      description: HttpServletRequest.getParameter 외부 입력이 PrintStream, PrintWriter 등의 printf 또는 format 포맷 문자열 인자로 흐르는 경우를 탐지합니다.
+      language: java
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-134
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern: $REQUEST.getParameter(...)
+          - metavariable-type:
+              metavariable: $REQUEST
+              type: HttpServletRequest
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $OUTPUT.printf($FORMAT, ...)
+              - pattern: $OUTPUT.format($FORMAT, ...)
+          - focus-metavariable: $FORMAT

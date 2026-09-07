@@ -1,0 +1,420 @@
+rules:
+  - id: kisa-2021-02-javascript-code-injection
+    languages: [javascript]
+    message: 외부 입력을 eval 또는 Function으로 실행하면 임의 코드가 실행될 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-02
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 2
+      name: 코드 삽입
+      description: Express 요청의 query, body 또는 params 외부 입력이 eval이나 Function 호출로 흐르는 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-95
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.query.$FIELD
+          - pattern: $REQUEST.body.$FIELD
+          - pattern: $REQUEST.params.$FIELD
+          - pattern: $REQUEST.query[$FIELD]
+          - pattern: $REQUEST.body[$FIELD]
+          - pattern: $REQUEST.params[$FIELD]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval($CODE)
+          - pattern: new Function($CODE)
+
+  - id: kisa-2021-05-javascript-os-command-injection
+    languages: [javascript]
+    message: 동적 값을 child_process.exec에 전달하면 운영체제 명령어 삽입이 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-05
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 5
+      name: 운영체제 명령어 삽입
+      description: Express 요청의 query, body 또는 params 외부 입력이 셸 기반 child_process.exec 명령으로 흐르는 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-78
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.query.$FIELD
+          - pattern: $REQUEST.body.$FIELD
+          - pattern: $REQUEST.params.$FIELD
+          - pattern: $REQUEST.query[$FIELD]
+          - pattern: $REQUEST.body[$FIELD]
+          - pattern: $REQUEST.params[$FIELD]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $CHILD_PROCESS.exec($COMMAND, ...)
+          - pattern: exec($COMMAND, ...)
+
+  - id: kisa-2021-08-javascript-xxe-enabled
+    languages: [javascript]
+    message: XML 외부 개체 치환을 활성화하면 XXE 공격에 노출될 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-08
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 8
+      name: 부적절한 XML 외부 개체 참조
+      description: libxmljs 계열 파서에서 noent 옵션을 true로 설정한 XML 파싱을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-611
+    pattern-either:
+      - pattern: |
+          $LIBXML.parseXml($XML, { ..., noent: true, ... })
+      - pattern: |
+          $LIBXML.parseXmlString($XML, { ..., noent: true, ... })
+
+  - id: kisa-2021-12-javascript-ssrf-dynamic-url
+    languages: [javascript]
+    message: 검증되지 않은 동적 URL로 서버 요청을 보내면 SSRF가 발생할 수 있습니다.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-12
+      category_id: 1
+      category: 입력데이터 검증 및 표현
+      category_number: 12
+      name: 서버사이드 요청 위조
+      description: Express 요청의 query, body 또는 params 외부 입력이 fetch 또는 axios 요청 URL로 흐르는 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-918
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQUEST.query.$FIELD
+          - pattern: $REQUEST.body.$FIELD
+          - pattern: $REQUEST.params.$FIELD
+          - pattern: $REQUEST.query[$FIELD]
+          - pattern: $REQUEST.body[$FIELD]
+          - pattern: $REQUEST.params[$FIELD]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: fetch($URL, ...)
+          - pattern: $AXIOS.get($URL, ...)
+          - pattern: $AXIOS.post($URL, ...)
+
+  - id: kisa-2021-20-javascript-world-writable-permission
+    languages: [javascript]
+    message: 모든 사용자가 쓸 수 있는 파일 권한을 설정하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-20
+      category_id: 2
+      category: 보안기능
+      category_number: 3
+      name: 중요한 자원에 대한 잘못된 권한 설정
+      description: Node.js chmod API에 다른 사용자 쓰기 비트가 포함된 정적 8진수 권한 모드를 설정하는 호출을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-732
+    patterns:
+      - pattern-either:
+          - pattern: $FS.chmod($PATH, $MODE, ...)
+          - pattern: $FS.chmodSync($PATH, $MODE)
+      - metavariable-regex:
+          metavariable: $MODE
+          regex: '^0[oO][0-7]*[2367]$'
+
+  - id: kisa-2021-21-javascript-weak-crypto
+    languages: [javascript]
+    message: MD5 또는 SHA-1과 같은 취약한 해시 알고리즘을 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-21
+      category_id: 2
+      category: 보안기능
+      category_number: 4
+      name: 취약한 암호화 알고리즘 사용
+      description: Node.js crypto API에서 MD5 또는 SHA-1 해시를 선택하는 호출을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-327
+    pattern-either:
+      - pattern: $CRYPTO.createHash("md5")
+      - pattern: $CRYPTO.createHash("sha1")
+      - pattern: $CRYPTO.createHash("sha-1")
+
+  - id: kisa-2021-23-javascript-hardcoded-secret
+    languages: [javascript]
+    message: 비밀번호, 토큰 또는 암호키를 소스코드에 하드코딩하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-23
+      category_id: 2
+      category: 보안기능
+      category_number: 6
+      name: 하드코드된 중요정보
+      description: 인증정보나 비밀값을 의미하는 이름의 변수에 긴 문자열 리터럴을 직접 할당한 선언을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-798
+    patterns:
+      - pattern-either:
+          - pattern: const $SECRET = $VALUE
+          - pattern: let $SECRET = $VALUE
+          - pattern: var $SECRET = $VALUE
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: "(?i).*(password|passwd|secret|token|api_?key|private_?key).*"
+      - metavariable-regex:
+          metavariable: $VALUE
+          regex: "^[\"'][^\"']{8,}[\"']$"
+
+  - id: kisa-2021-24-javascript-short-rsa-key
+    languages: [javascript]
+    message: RSA 키 길이는 최소 2048비트 이상으로 설정하세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-24
+      category_id: 2
+      category: 보안기능
+      category_number: 7
+      name: 충분하지 않은 키 길이 사용
+      description: Node.js RSA 키 생성 옵션에서 2048비트 미만의 정적 길이를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-326
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $CRYPTO.generateKeyPairSync("rsa", { ..., modulusLength: $BITS, ... })
+          - pattern: |
+              $CRYPTO.generateKeyPair("rsa", { ..., modulusLength: $BITS, ... }, ...)
+      - metavariable-comparison:
+          metavariable: $BITS
+          comparison: $BITS < 2048
+
+  - id: kisa-2021-25-javascript-insecure-random-security-value
+    languages: [javascript]
+    message: 토큰과 같은 보안 값을 Math.random으로 생성하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-25
+      category_id: 2
+      category: 보안기능
+      category_number: 8
+      name: 적절하지 않은 난수 값 사용
+      description: 보안 관련 이름의 값 생성에 예측 가능한 Math.random을 사용하는 패턴을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-330
+    patterns:
+      - pattern: $SECURITY_VALUE = Math.random()
+      - metavariable-regex:
+          metavariable: $SECURITY_VALUE
+          regex: "(?i).*(token|secret|nonce|session|password|otp|code|key).*"
+
+  - id: kisa-2021-28-javascript-tls-verification-disabled
+    languages: [javascript]
+    message: TLS 인증서 검증을 비활성화하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-28
+      category_id: 2
+      category: 보안기능
+      category_number: 11
+      name: 부적절한 인증서 유효성 검증
+      description: node:https 또는 node:tls에서 가져온 클라이언트의 실제 연결 호출에 rejectUnauthorized=false를 지정한 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-295
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  $CLIENT.request({ ..., rejectUnauthorized: false, ... }, ...)
+              - pattern: |
+                  $CLIENT.get({ ..., rejectUnauthorized: false, ... }, ...)
+          - pattern-inside: |
+              import $CLIENT from "node:https";
+              ...
+      - patterns:
+          - pattern: |
+              $CLIENT.connect({ ..., rejectUnauthorized: false, ... }, ...)
+          - pattern-inside: |
+              import $CLIENT from "node:tls";
+              ...
+
+  - id: kisa-2021-29-javascript-insecure-cookie
+    languages: [javascript]
+    message: 세션·인증정보 등 민감한 쿠키를 사용자 디스크에 영속 저장하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-29
+      category_id: 2
+      category: 보안기능
+      category_number: 12
+      name: 사용자 하드디스크에 저장되는 쿠키를 통한 정보노출
+      description: 민감한 이름의 Express 응답 쿠키에 양수 maxAge를 설정하여 사용자 디스크에 영속 저장하는 경우를 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-539
+    patterns:
+      - pattern: |
+          $RESPONSE.cookie($NAME, $VALUE, { ..., maxAge: $MILLISECONDS, ... })
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: '(?i)^["''][^"''\r\n]*(?:session|auth|token|credential|password|passwd|secret)[^"''\r\n]*["'']$'
+      - metavariable-comparison:
+          metavariable: $MILLISECONDS
+          comparison: $MILLISECONDS > 0
+
+  - id: kisa-2021-30-javascript-secret-in-comment
+    languages: [javascript]
+    message: 주석에 비밀번호, 토큰 또는 암호키 값을 남기지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-30
+      category_id: 2
+      category: 보안기능
+      category_number: 13
+      name: 주석문 안에 포함된 시스템 주요정보
+      description: JavaScript 주석에 보안 관련 키와 긴 값이 함께 기록된 패턴을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-615
+    pattern-regex: '(?i)(?://|/\*)[^\r\n]*(?:password|passwd|secret|token|credential|api[_-]?key)\s*[:=]\s*(?:"[^"\r\n]{8,}"|''[^''\r\n]{8,}''|[^\s\r\n]{8,})'
+
+  - id: kisa-2021-31-javascript-unsalted-password-hash
+    languages: [javascript]
+    message: 비밀번호를 솔트 없이 직접 해시하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-31
+      category_id: 2
+      category: 보안기능
+      category_number: 14
+      name: 솔트 없이 일방향 해쉬 함수 사용
+      description: 비밀번호 이름의 값을 단일 crypto 해시에 직접 전달하는 패턴을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-759
+    patterns:
+      - pattern: $CRYPTO.createHash($ALGORITHM).update($PASSWORD).digest(...)
+      - metavariable-regex:
+          metavariable: $PASSWORD
+          regex: "(?i).*(password|passwd|pwd).*"
+
+  - id: kisa-2021-35-javascript-unconditional-loop
+    languages: [javascript]
+    message: 종료 조건이 없는 반복문은 서비스 거부를 유발할 수 있습니다.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-35
+      category_id: 3
+      category: 시간 및 상태
+      category_number: 2
+      name: 종료되지 않는 반복문 또는 재귀함수
+      description: JavaScript의 명시적인 while(true) 무한 반복문을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-835
+    patterns:
+      - pattern: |
+          while (true) {
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            break;
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            return;
+            ...
+          }
+      - pattern-not: |
+          while (true) {
+            ...
+            return $VALUE;
+            ...
+          }
+
+  - id: kisa-2021-36-javascript-error-detail-exposure
+    languages: [javascript]
+    message: 오류 스택을 HTTP 응답으로 직접 노출하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-36
+      category_id: 4
+      category: 에러처리
+      category_number: 1
+      name: 오류 메시지 정보노출
+      description: JavaScript 오류 stack 값을 응답으로 직접 보내는 호출을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-209
+    pattern-either:
+      - pattern: $RESPONSE.send($ERROR.stack)
+      - pattern: |
+          $RESPONSE.json({ ..., stack: $ERROR.stack, ... })
+
+  - id: kisa-2021-37-javascript-empty-catch
+    languages: [javascript]
+    message: 예외를 아무 대응 없이 무시하지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-37
+      category_id: 4
+      category: 에러처리
+      category_number: 2
+      name: 오류상황 대응 부재
+      description: JavaScript의 비어 있는 catch 블록을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-390
+    pattern: |
+      try {
+        ...
+      } catch ($ERROR) {
+      }
+
+  - id: kisa-2021-43-javascript-unsafe-deserialization
+    languages: [javascript]
+    message: 신뢰할 수 없는 데이터에 node-serialize 역직렬화를 사용하지 마세요.
+    severity: ERROR
+    metadata:
+      weakness_id: KISA-2021-43
+      category_id: 5
+      category: 코드오류
+      category_number: 5
+      name: 신뢰할 수 없는 데이터의 역직렬화
+      description: node-serialize 패키지에서 가져온 객체의 unserialize 호출을 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-502
+    patterns:
+      - pattern: $SERIALIZER.unserialize($DATA)
+      - pattern-inside: |
+          import $SERIALIZER from "node-serialize";
+          ...
+
+  - id: kisa-2021-45-javascript-leftover-debug-code
+    languages: [javascript]
+    message: 운영 코드에 debugger 문을 남기지 마세요.
+    severity: WARNING
+    metadata:
+      weakness_id: KISA-2021-45
+      category_id: 6
+      category: 캡슐화
+      category_number: 2
+      name: 제거되지 않고 남은 디버그 코드
+      description: JavaScript debugger 문을 디버그 잔존 코드로 탐지합니다.
+      language: javascript
+      implementation_status: PARTIALLY_IMPLEMENTED
+      cwe: CWE-489
+    pattern: debugger

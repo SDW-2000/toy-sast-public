@@ -1,0 +1,49 @@
+[project]
+name = "toy-sast-backend"
+version = "0.1.0"
+description = "TOY SAST API and PostgreSQL-backed analyzer worker foundation"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.16,<2",
+  "argon2-cffi>=25.1,<26",
+  "fastapi>=0.141,<0.142",
+  "psycopg[binary]>=3.2,<4",
+  "pydantic-settings>=2.10,<3",
+  "python-multipart>=0.0.20,<1",
+  "sqlalchemy>=2.0,<2.1",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[dependency-groups]
+analyzer = [
+  "semgrep==1.174.0",
+]
+dev = [
+  "httpx>=0.28,<1",
+  "mypy>=1.17,<2",
+  "pytest>=9.0.3,<10",
+  "ruff>=0.12,<1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
