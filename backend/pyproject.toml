@@ -16,7 +16,7 @@ dependencies = [
 
 [dependency-groups]
 analyzer = [
-  "semgrep==1.174.0",
+  "semgrep==1.177.0",
 ]
 dev = [
   "httpx>=0.28,<1",
