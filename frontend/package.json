@@ -19,7 +19,7 @@
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.86.0",
     "react-router-dom": "^7.18.2",
-    "vite": "^7.0.0",
+    "vite": "^7.3.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
